@@ -1,3 +1,3 @@
 ### Simulasi Bea Impor
 
-![Contoh gambar](./img/example.png)
+![example](./img/example.png)

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simulator Pajak Impor - SPA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>body { background: #f8fafc; } .card { max-width: 900px; }</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6">
+  <div class="card w-full bg-white rounded-2xl shadow-xl p-6">
+    <header class="mb-6">
+      <h1 class="text-2xl font-semibold">Simulator Pajak Impor</h1>
+      <p class="text-sm text-gray-600 mt-1">Masukkan detail pembelian dan lihat estimasi pajak impor ke Indonesia.</p>
+    </header>
+
+    <main class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Form -->
+      <section class="space-y-4">
+        <div>
+          <label class="text-sm font-medium">Kategori Barang</label>
+          <select id="category" class="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2">
+            <option value="elektronik" data-rate="7.5">Elektronik (7.5%)</option>
+            <option value="pakaian" data-rate="15">Pakaian (15%)</option>
+            <option value="kosmetik" data-rate="10">Kosmetik (10%)</option>
+            <option value="lainnya" data-rate="5">Lainnya (5%)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Harga barang (USD)</label>
+          <input id="priceUsd" type="number" min="0" step="0.01" value="0" class="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Ongkos kirim + asuransi (USD)</label>
+          <input id="shippingUsd" type="number" min="0" step="0.01" value="0" class="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Kurs (Rp / USD)</label>
+          <div class="flex space-x-2">
+            <input id="rate" type="number" min="0" step="1" value="16000" class="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
+            <!-- <button id="getRateBtn" class="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700">Ambil Kurs</button> -->
+          </div>
+          <small id="rateStatus" class="text-xs text-gray-500"></small>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm font-medium">Tarif Bea Masuk (%)</label>
+            <input id="bmRate" type="number" min="0" step="0.01" value="7.5" class="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
+          </div>
+          <div>
+            <label class="text-sm font-medium">Tarif PPN (%)</label>
+            <input id="ppnRate" type="number" min="0" step="0.01" value="11" class="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">PPh Impor</label>
+          <div class="mt-1 flex items-center space-x-3">
+            <label class="inline-flex items-center">
+              <input type="radio" name="pphHasNpwp" value="10" checked class="form-radio" />
+              <span class="ml-2">10% (Punya NPWP)</span>
+            </label>
+            <label class="inline-flex items-center">
+              <input type="radio" name="pphHasNpwp" value="20" class="form-radio" />
+              <span class="ml-2">20% (Tidak punya NPWP)</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Biaya Kurir (Rp)</label>
+          <input id="courierFee" type="number" min="0" step="1000" value="0" class="mt-1 block w-full rounded-md border-gray-200 shadow-sm p-2" />
+        </div>
+
+        <div class="pt-2 flex space-x-2">
+          <button id="resetBtn" class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200">Reset</button>
+          <button id="copyBtn" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Salin Rincian</button>
+          <button id="exportBtn" class="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">Ekspor CSV</button>
+        </div>
+      </section>
+
+      <!-- Result -->
+      <section class="bg-gray-50 rounded-xl p-4">
+        <h2 class="font-semibold mb-3">Rincian Perhitungan</h2>
+        <div class="space-y-3 text-sm">
+          <div class="flex justify-between"><div>CIF (USD)</div><div id="cifUsd">-</div></div>
+          <div class="flex justify-between"><div>CIF (Rp)</div><div id="cifRp">-</div></div>
+          <div class="flex justify-between"><div>Bea Masuk</div><div id="bmRp">-</div></div>
+          <div class="flex justify-between"><div>PPN</div><div id="ppnRp">-</div></div>
+          <div class="flex justify-between"><div>PPh</div><div id="pphRp">-</div></div>
+          <div class="flex justify-between"><div>Biaya Kurir</div><div id="courierRp">-</div></div>
+          <div class="flex justify-between"><div>Total Pajak</div><div id="totalTaxRp">-</div></div>
+          <div class="flex justify-between font-semibold text-lg"><div>Total Bayar</div><div id="grandTotalRp">-</div></div>
+          <div class="mt-3 bg-white p-3 rounded-md shadow-sm text-xs text-gray-600">
+            <pre id="summaryText" class="whitespace-pre-wrap text-[13px]"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="mt-6 text-xs text-gray-500 text-right">Simulasi ini hanya estimasi — cek aturan resmi Direktorat Jenderal Bea dan Cukai untuk kepastian.</footer>
+  </div>
+
+<script>
+$(function(){
+  function formatRp(x){ return 'Rp ' + Number(x).toLocaleString('id-ID'); }
+  function formatUsd(x){ return '$ ' + Number(x).toLocaleString('en-US',{minimumFractionDigits:2}); }
+
+  async function getRate(){
+    $('#rateStatus').text('Mengambil kurs terbaru...');
+    try {
+      const res = await fetch('https://kurs-bea-cukai.vercel.app/api/latest');
+      const data = await res.json();
+      if(data && data.kurs && data.kurs.USD){
+        $('#rate').val(data.kurs.USD);
+        $('#rateStatus').text('Kurs otomatis berhasil diambil.');
+        compute();
+      } else throw new Error('Format data tidak sesuai');
+    } catch(e){
+      $('#rateStatus').text('Gagal ambil kurs, silakan isi manual.');
+    }
+  }
+
+  function compute(){
+    const priceUsd = parseFloat($('#priceUsd').val()) || 0;
+    const shippingUsd = parseFloat($('#shippingUsd').val()) || 0;
+    const rate = parseFloat($('#rate').val()) || 1;
+    const bmRate = parseFloat($('#bmRate').val()) || 0;
+    const ppnRate = parseFloat($('#ppnRate').val()) || 0;
+    const pphRate = parseFloat($('input[name="pphHasNpwp"]:checked').val()) || 0;
+    const courierFee = parseFloat($('#courierFee').val()) || 0;
+
+    const cifUsd = priceUsd + shippingUsd;
+    const cifRp = cifUsd * rate;
+    const bmRp = (bmRate/100)*cifRp;
+    const ppnRp = (ppnRate/100)*(cifRp+bmRp);
+    const pphRp = (pphRate/100)*(cifRp+bmRp);
+    const totalTax = bmRp+ppnRp+pphRp;
+    const grandTotal = cifRp + totalTax + courierFee;
+
+    $('#cifUsd').text(formatUsd(cifUsd));
+    $('#cifRp').text(formatRp(cifRp));
+    $('#bmRp').text(formatRp(bmRp));
+    $('#ppnRp').text(formatRp(ppnRp));
+    $('#pphRp').text(formatRp(pphRp));
+    $('#courierRp').text(formatRp(courierFee));
+    $('#totalTaxRp').text(formatRp(totalTax));
+    $('#grandTotalRp').text(formatRp(grandTotal));
+
+    const summary = [];
+    summary.push('Harga barang (USD): ' + formatUsd(priceUsd));
+    summary.push('Ongkos kirim + asuransi (USD): ' + formatUsd(shippingUsd));
+    summary.push('Kurs: ' + formatRp(rate));
+    summary.push('CIF (USD): ' + formatUsd(cifUsd));
+    summary.push('CIF (Rp): ' + formatRp(cifRp));
+    summary.push('Bea Masuk ('+bmRate+'%): ' + formatRp(bmRp));
+    summary.push('PPN ('+ppnRate+'%): ' + formatRp(ppnRp));
+    summary.push('PPh ('+pphRate+'%): ' + formatRp(pphRp));
+    summary.push('Biaya Kurir: ' + formatRp(courierFee));
+    summary.push('Total Pajak: ' + formatRp(totalTax));
+    summary.push('Total Bayar: ' + formatRp(grandTotal));
+    $('#summaryText').text(summary.join('\n'));
+  }
+
+  $('#category').on('change', function(){
+    const rate = $(this).find(':selected').data('rate');
+    $('#bmRate').val(rate);
+    compute();
+  });
+
+  $('#priceUsd, #shippingUsd, #rate, #bmRate, #ppnRate, #courierFee').on('input change', compute);
+  $('input[name="pphHasNpwp"]').on('change', compute);
+
+  $('#resetBtn').on('click', function(){
+    $('#category').val('elektronik').trigger('change');
+    $('#priceUsd').val(0);
+    $('#shippingUsd').val(0);
+    $('#rate').val(16000);
+    $('#ppnRate').val(11);
+    $('input[name="pphHasNpwp"][value="10"]').prop('checked', true);
+    $('#courierFee').val(0);
+    compute();
+  });
+
+  $('#getRateBtn').on('click', getRate);
+
+  $('#copyBtn').on('click', function(){
+    navigator.clipboard.writeText($('#summaryText').text()).then(()=>alert('Rincian disalin ke clipboard'), ()=>alert('Gagal menyalin'));
+  });
+
+  $('#exportBtn').on('click', function(){
+    const csv = $('#summaryText').text().split('\n').map(l=>'"'+l.replace(/"/g,'""')+'"').join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'rincian-pajak-impor.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  compute();
+});
+</script>
+</body>
+</html>
